@@ -5,7 +5,8 @@
 struct Process {
     int id;
     int numOfInstructions;
-    int type;
+    int type; // 100 = CPU, 0 IO
+    int startTime = 0;
 };
 
 const int I0_DURATION = 4; // Determines how long it takes a IO process to run
@@ -13,6 +14,8 @@ const int I0_DURATION = 4; // Determines how long it takes a IO process to run
 class ProcessScheduler {
 
     private:
+
+        const int I0_DURATION = 4;
 
         std::queue<Process> blockedProcesses;
         std::queue<Process> readyProcesses;
@@ -33,9 +36,48 @@ class ProcessScheduler {
             return;
         }
 
+        void rebalance(){
+
+            if (blockedProcesses.size() == 0){
+                return;
+            }
+
+        }
+
         void run() {
+
+            if (readyProcesses.size() == 0 && blockedProcesses.size() == 0){
+                std::cout << "Processes Finished!" << std::endl;
+                std::cout << "Stats: " << std::endl;
+                std::cout << "CPU Cycles: " << cpu_cycles << std::endl;
+                std::cout << "IO Cycles: " << io_cycles << std::endl;
+                std::cout << "Total Cycles: " << timeElapsed << std::endl;
+            }
+
+            if (readyProcesses.size() == 0 && blockedProcesses.size() != 0){
+                timeElapsed++;
+                io_cycles++;
+            }
+
             Process currentProcess = readyProcesses.front();
             readyProcesses.pop();
+
+            if (currentProcess.type == 100){
+                while (currentProcess.numOfInstructions > 0){
+                    timeElapsed++;
+                    cpu_cycles++;
+                    currentProcess.numOfInstructions--;
+                }
+            }
+
+            else {
+                currentProcess.startTime = timeElapsed;
+                blockedProcesses.push(currentProcess);
+            }
+
+            rebalance();
+            run();
+
         }
 };
 
