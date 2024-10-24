@@ -2,6 +2,7 @@
 #include <stdlib.h>
 #include <unistd.h>
 #include <string.h>
+#include <fcntl.h>
 
 void basicProcessAPI(){
 
@@ -78,46 +79,62 @@ void inverseWaitUsage(){
 }
 
 
-void pipeTwoChildProcesses() {
+void childWriteToFile() {
+    int pipefd[2];
+    
+    if (pipe(pipefd) == -1) {
+        perror("pipe");
+        exit(1);
+    }
+    
     int rc1 = fork();
     
-    if (rc1 < 0) {
-        fprintf(stderr, "First fork failed\n");
-        exit(1);
-    } 
-    else if (rc1 == 0) {
-        printf("First child (pid: %d)\n", (int)getpid());
-        char *myargs[3];
-        myargs[0] = "ls";
-        myargs[1] = "-l";
-        myargs[2] = NULL;
-        execvp(myargs[0], myargs);
-    } 
-    else {
-        int rc2 = fork();
+    if (rc1 == 0) {
+        close(pipefd[0]);                   
+        dup2(pipefd[1], STDOUT_FILENO);      
+        close(pipefd[1]);
         
-        if (rc2 < 0) {
-            fprintf(stderr, "Second fork failed\n");
-            exit(1);
-        }
-        else if (rc2 == 0) {
-            printf("Second child (pid: %d)\n", (int)getpid());
-            char *myargs[3];
-            myargs[0] = "pwd";
-            myargs[1] = NULL;
-            execvp(myargs[0], myargs);
-        }
-        else {
-            wait(NULL);  // Wait for first child
-            wait(NULL);  // Wait for second child
-            printf("Parent: both children completed\n");
-        }
+        execlp("ls", "ls", "-l", NULL);      
+        perror("execlp ls");
+        exit(1);
     }
+    
+    int rc2 = fork();
+    
+    if (rc2 == 0) {
+        close(pipefd[1]);                  
+        dup2(pipefd[0], STDIN_FILENO);       
+        close(pipefd[0]);
+    
+        execlp("grep", "grep", "f", NULL);
+        perror("execlp grep");
+        exit(1);
+    }
+
+    close(pipefd[0]);
+    close(pipefd[1]);
+    
+    wait(NULL);
+    wait(NULL);
+}
+
+void childWriteToFile2(){
+
+    int rc = fork();
+    if (rc < 0) printf("Fork failed!\n");
+
+    if (rc == 0){
+        close(STDOUT_FILENO);
+        open("./process_api.output", O_CREAT|)
+        printf("Hello\n");
+    }
+
+    wait(NULL);
 }
 
 int main(int argc, char *argv[]){
 
-    inverseWaitUsage();
+    childWriteToFile2();
 
 
     return 0;
