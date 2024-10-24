@@ -79,7 +79,8 @@ void inverseWaitUsage(){
 }
 
 
-void childWriteToFile() {
+void childPiping() {
+
     int pipefd[2];
     
     if (pipe(pipefd) == -1) {
@@ -118,23 +119,10 @@ void childWriteToFile() {
     wait(NULL);
 }
 
-void childWriteToFile2(){
-
-    int rc = fork();
-    if (rc < 0) printf("Fork failed!\n");
-
-    if (rc == 0){
-        close(STDOUT_FILENO);
-        open("./process_api.output", O_CREAT|)
-        printf("Hello\n");
-    }
-
-    wait(NULL);
-}
 
 int main(int argc, char *argv[]){
 
-    childWriteToFile2();
+    childPiping();
 
 
     return 0;
