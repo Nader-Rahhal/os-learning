@@ -6,7 +6,7 @@
 #include <string.h>
 
 #define BUFFER 1024
-
+#define MAX_ARGS 12
 
 int main(){
 
@@ -21,11 +21,24 @@ int main(){
         char *p = strchr(line, '\n');
         if (p) *p = 0;
         if (strcmp(line, "exit") == 0) break;
-        char *args[] = {line, (char*)0};
+        printf("Command: (%s)\n", line);
+
+
+        char *args[MAX_ARGS];
+        int arg_count = 0;
+        
+        char *token = strtok(line, " ");
+        while (token != NULL && arg_count < MAX_ARGS - 1) {
+            args[arg_count++] = token;
+            token = strtok(NULL, " ");
+        }
+
+        args[arg_count] = NULL;
+
         int rc = fork();
 
         if (rc == 0){
-            execvp(line, args);
+            execvp(args[0], args);
             exit(0);
         }
 
