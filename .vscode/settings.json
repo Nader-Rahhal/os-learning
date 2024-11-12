@@ -49,6 +49,7 @@
         "unordered_map": "cpp",
         "variant": "cpp",
         "algorithm": "cpp",
-        "types.h": "c"
+        "types.h": "c",
+        "stdio.h": "c"
     }
 }

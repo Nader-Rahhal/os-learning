@@ -9,7 +9,9 @@ int main(){
     scanf("%d", &allocate);
     printf("Allocating %d MB of memory...\n", allocate);
 
-    size_t num_elements = (allocate * 1024 * 1024) / sizeof(int);
+    size_t total_bytes = (size_t)allocate * 1024 * 1024;
+    size_t num_elements = total_bytes / sizeof(int);
+
     int* arr = (int*)malloc(num_elements * sizeof(int));
 
     if (arr == NULL) {
@@ -17,11 +19,13 @@ int main(){
         return 1;
     }
 
-    while(1){
-        for (size_t i = 0; i < num_elements; i++){
-            printf("%d", arr[i]);
-        }
+    printf("Total allocated: %zu bytes (%zu elements)\n", total_bytes, num_elements);
+
+    for(int i = 0; i < 1000000; i++) {
+        arr[i] = i;
     }
+
+    printf("Bytes actually touched: %zu\n", 1000000 * sizeof(int));
 
     free(arr);
 
