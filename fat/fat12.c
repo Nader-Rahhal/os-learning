@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 
 #pragma pack(push, 1)
 struct BootSector
@@ -108,20 +109,20 @@ int main(int argc, char *argv[])
 
     fseek(disk, startOffset, SEEK_SET);
     
-    struct FileAllocationTable fat;
-    fread(&fat, sizeof(struct FileAllocationTable), 1, disk);
+    struct FileAllocationTable *fat = malloc(sizePerFat);
+    fread(fat, sizeof(struct FileAllocationTable), 1, disk);
 
-    memcpy(fat12.fat1, &fat, sizePerFat);
+    memcpy(fat12.fat1, fat, sizePerFat);
 
     // PULL FAT2 FROM DISK
 
     startOffset = startOffset + sizePerFat;
     fseek(disk, startOffset, SEEK_SET);
     
-    struct FileAllocationTable fat_backup;
-    fread(&fat_backup, sizeof(struct FileAllocationTable), 1, disk);
+    struct FileAllocationTable *fat_backup = malloc(sizePerFat);
+    fread(fat_backup, sizeof(struct FileAllocationTable), 1, disk);
 
-    memcpy(fat12.fat2, &fat_backup, sizePerFat);
+    memcpy(fat12.fat2, fat_backup, sizePerFat);
 
 
     // PULL ROOT DIRECTORY FROM DISK
@@ -144,25 +145,25 @@ int main(int argc, char *argv[])
         return -1;
     }
 
-    memcpy(fat12.rootdir, &rootDir, rootDirSize);
+    memcpy(fat12.rootdir, rootDir, rootDirSize);
 
-    // PULL DATA REGION FROM DISK
+    // PULL DATA REGION FROM DATA REGION
 
     uint16_t dataRegionOffset = startOffset + (numRootEntries * 32);
 
     for (int i = 0; i < numRootEntries; i++)
     {
-        if (rootDir[i].File_Name[0] == 0x00 || rootDir[i].File_Name[0] == 0xE5)
+        if (fat12.rootdir[i].File_Name[0] == 0x00 || fat12.rootdir[i].File_Name[0] == 0xE5)
         {
             continue;
         }
 
         printf("\nDirectory Entry %d:\n", i);
-        printf("Filename: %.8s.%.3s\n", rootDir[i].File_Name, rootDir[i].Extension);
-        printf("File Size: %u bytes\n", rootDir[i].FileSize);
+        printf("Filename: %.8s.%.3s\n", fat12.rootdir[i].File_Name, fat12.rootdir[i].Extension);
+        printf("File Size: %u bytes\n", fat12.rootdir[i].FileSize);
         printf("Contents:\n");
 
-        uint16_t currentCluster = rootDir[i].StartCluster;
+        uint16_t currentCluster = fat12.rootdir[i].StartCluster;
         struct DataRegion dataRegion;
 
         while (currentCluster < 0xFF8)
@@ -177,19 +178,24 @@ int main(int argc, char *argv[])
                 break;
             }
 
-            for (int j = 0; j < 512 && j < rootDir[i].FileSize; j++)
+            for (int j = 0; j < 512 && j < fat12.rootdir[i].FileSize; j++)
             {
                 if (dataRegion.Clusters[j] >= 32 && dataRegion.Clusters[j] <= 126)
                 {
                     printf("%c", dataRegion.Clusters[j]);
                 }
             }
-            currentCluster = getFatEntry(currentCluster, &fat);
+            currentCluster = getFatEntry(currentCluster, fat);
         }
         printf("\n");
     }
 
+    free(fat);
+    free(fat_backup);
     free(rootDir);
+    free(fat12.fat1);
+    free(fat12.fat2);
+    free(fat12.rootdir);
 
     return 0;
 }
