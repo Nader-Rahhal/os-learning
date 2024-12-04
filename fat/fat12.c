@@ -29,6 +29,14 @@ struct BootSector
 };
 #pragma pack(pop)
 
+struct FAT12System {
+    struct BootSector bootsector;
+    struct FileAllocationTable *fat1;
+    struct FileAllocationTable *fat2;
+    struct Directory *rootdir;
+    // struct DataRegion data;
+};  
+
 struct FileAllocationTable
 {
     uint8_t Entries[4608];
@@ -56,24 +64,17 @@ struct Directory
     uint32_t FileSize;       // Offset 28
 };
 
-uint16_t swap16(uint16_t val)
-{
-    return (val << 8) | (val >> 8);
-}
-
 uint16_t getFatEntry(uint16_t cluster, struct FileAllocationTable *fat)
 {
-    uint32_t fatOffset = cluster + (cluster / 2); // multiply by 1.5
+    uint32_t fatOffset = cluster + (cluster / 2);
     uint16_t value;
 
     if (cluster % 2 == 0)
     {
-        // Even: take 12 bits from current position
         value = fat->Entries[fatOffset] + ((fat->Entries[fatOffset + 1] & 0x0F) << 8);
     }
     else
     {
-        // Odd: take 12 bits shifted
         value = (fat->Entries[fatOffset] >> 4) + (fat->Entries[fatOffset + 1] << 4);
     }
 
@@ -82,7 +83,9 @@ uint16_t getFatEntry(uint16_t cluster, struct FileAllocationTable *fat)
 
 int main(int argc, char *argv[])
 {
+    struct FAT12System fat12;
 
+    // PULL BOOTSECTOR FROM DISK
     struct BootSector bootSector;
     FILE *disk = fopen("disk.img", "rb");
     if (!disk)
@@ -93,55 +96,35 @@ int main(int argc, char *argv[])
 
     fread(&bootSector, sizeof(struct BootSector), 1, disk);
 
-    if (0)
-    {
-        printf("Size of BootSector Struct: %lu\n", sizeof(struct BootSector));
-        printf("OEM Identifier: %.8s\n", bootSector.OEM_Identifier);
-        printf("Bytes Per Sector: %u\n", bootSector.BytesPerSector);
-        printf("Sectors Per Cluster: %u\n", bootSector.SectorsPerCluster);
-        printf("Reserved Sectors: %u\n", bootSector.ReservedSectors);
-        printf("Number of FATs: %u\n", bootSector.NumberOfFATs);
-        printf("Root Entries: %u\n", bootSector.RootEntries);
-        printf("Number of Sectors: %u\n", bootSector.TotalSectors);
-        printf("Media Descriptor: 0x%02X\n", bootSector.MediaDescriptor);
-        printf("Sectors Per FAT: %u\n", bootSector.SectorsPerFAT);
-        printf("Sectors Per Head: %u\n", bootSector.SectorsPerTrack);
-        printf("Hidden Sectors: %u\n", bootSector.HiddenSectors);
-        printf("Drive Number: %u\n", bootSector.DriveNumber);
-        printf("Volume ID: 0x%08X\n", bootSector.VolumeID);
-        printf("File System Type: %.8s\n", bootSector.FileSystemType);
-    }
+    fat12.bootsector = bootSector;
+    
 
+    // PULL FAT1 FROM DISK
     uint16_t sizePerFat = bootSector.SectorsPerFAT * bootSector.BytesPerSector;
     uint16_t startOffset = bootSector.ReservedSectors * bootSector.BytesPerSector;
 
-    if (fseek(disk, startOffset, SEEK_SET))
-    {
-        printf("Fseek failed!\n");
-        return -1;
-    }
+    fat12.fat1 = (struct FileAllocationTable *)malloc(sizePerFat);
+    fat12.fat2 = (struct FileAllocationTable *)malloc(sizePerFat);
 
+    fseek(disk, startOffset, SEEK_SET);
+    
     struct FileAllocationTable fat;
-    if (!fread(&fat, sizeof(struct FileAllocationTable), 1, disk))
-    {
-        printf("Failed to read disk!\n");
-        return -1;
-    }
+    fread(&fat, sizeof(struct FileAllocationTable), 1, disk);
+
+    memcpy(fat12.fat1, &fat, sizePerFat);
+
+    // PULL FAT2 FROM DISK
 
     startOffset = startOffset + sizePerFat;
-
-    if (fseek(disk, startOffset, SEEK_SET))
-    {
-        printf("Fseek failed!\n");
-        return -1;
-    }
-
+    fseek(disk, startOffset, SEEK_SET);
+    
     struct FileAllocationTable fat_backup;
-    if (!fread(&fat_backup, sizeof(struct FileAllocationTable), 1, disk))
-    {
-        printf("Failed to read disk!\n");
-        return -1;
-    }
+    fread(&fat_backup, sizeof(struct FileAllocationTable), 1, disk);
+
+    memcpy(fat12.fat2, &fat_backup, sizePerFat);
+
+
+    // PULL ROOT DIRECTORY FROM DISK
 
     startOffset = startOffset + sizePerFat;
 
@@ -149,7 +132,10 @@ int main(int argc, char *argv[])
 
     uint16_t numRootEntries = bootSector.RootEntries;
     uint32_t rootDirSize = numRootEntries * sizeof(struct Directory);
+
     struct Directory *rootDir = (struct Directory *)malloc(rootDirSize);
+
+    fat12.rootdir = (struct Directory *)malloc(rootDirSize);
 
     if (!fread(rootDir, rootDirSize, 1, disk))
     {
@@ -158,7 +144,12 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    memcpy(fat12.rootdir, &rootDir, rootDirSize);
+
+    // PULL DATA REGION FROM DISK
+
     uint16_t dataRegionOffset = startOffset + (numRootEntries * 32);
+
     for (int i = 0; i < numRootEntries; i++)
     {
         if (rootDir[i].File_Name[0] == 0x00 || rootDir[i].File_Name[0] == 0xE5)
@@ -168,8 +159,6 @@ int main(int argc, char *argv[])
 
         printf("\nDirectory Entry %d:\n", i);
         printf("Filename: %.8s.%.3s\n", rootDir[i].File_Name, rootDir[i].Extension);
-        // printf("Start Cluster: %u\n", rootDir[i].StartCluster);
-        // printf("Physical Cluster: %u\n", getFatEntry(rootDir[i].StartCluster, &fat));
         printf("File Size: %u bytes\n", rootDir[i].FileSize);
         printf("Contents:\n");
 

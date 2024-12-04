@@ -1,0 +1,18 @@
+    if (0)
+    {
+        printf("Size of BootSector Struct: %lu\n", sizeof(struct BootSector));
+        printf("OEM Identifier: %.8s\n", bootSector.OEM_Identifier);
+        printf("Bytes Per Sector: %u\n", bootSector.BytesPerSector);
+        printf("Sectors Per Cluster: %u\n", bootSector.SectorsPerCluster);
+        printf("Reserved Sectors: %u\n", bootSector.ReservedSectors);
+        printf("Number of FATs: %u\n", bootSector.NumberOfFATs);
+        printf("Root Entries: %u\n", bootSector.RootEntries);
+        printf("Number of Sectors: %u\n", bootSector.TotalSectors);
+        printf("Media Descriptor: 0x%02X\n", bootSector.MediaDescriptor);
+        printf("Sectors Per FAT: %u\n", bootSector.SectorsPerFAT);
+        printf("Sectors Per Head: %u\n", bootSector.SectorsPerTrack);
+        printf("Hidden Sectors: %u\n", bootSector.HiddenSectors);
+        printf("Drive Number: %u\n", bootSector.DriveNumber);
+        printf("Volume ID: 0x%08X\n", bootSector.VolumeID);
+        printf("File System Type: %.8s\n", bootSector.FileSystemType);
+    }
