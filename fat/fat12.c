@@ -35,6 +35,7 @@ struct FAT12System {
     struct FileAllocationTable *fat1;
     struct FileAllocationTable *fat2;
     struct Directory *rootdir;
+    uint16_t startOfDataRegion;
     // struct DataRegion data;
 };  
 
@@ -45,7 +46,7 @@ struct FileAllocationTable
 
 struct DataRegion
 {
-    uint8_t Clusters[512];
+    uint8_t Clusters[512]; // array of uint8_t of size 512
 };
 
 struct Directory
@@ -149,7 +150,7 @@ int main(int argc, char *argv[])
 
     // PULL DATA REGION FROM DATA REGION
 
-    uint16_t dataRegionOffset = startOffset + (numRootEntries * 32);
+    fat12.startOfDataRegion = startOffset + (numRootEntries * 32);
 
     for (int i = 0; i < numRootEntries; i++)
     {
@@ -168,7 +169,7 @@ int main(int argc, char *argv[])
 
         while (currentCluster < 0xFF8)
         {
-            uint32_t clusterOffset = dataRegionOffset + ((currentCluster - 2) * 512);
+            uint32_t clusterOffset = fat12.startOfDataRegion + ((currentCluster - 2) * 512);
 
             fseek(disk, clusterOffset, SEEK_SET);
 
